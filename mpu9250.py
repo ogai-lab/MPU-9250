@@ -3,8 +3,10 @@
 
 import smbus
 import time
+import csv
+import argparse
 
-# A class (python2) that acquires data from I2C from Strawberry Linux's "MPU-9250"
+# A class (python3) that acquires data from I2C from Strawberry Linux's "MPU-9250"
 # https://strawberry-linux.com/catalog/items?code=12250
 #
 # 2016-05-03 Boyaki Machine
@@ -262,25 +264,25 @@ class SL_MPU9250:
         return ((raw - self.offsetRoomTemp) / self.tempSensitivity) + 21
 
     def selfTestMag(self):
-        print "start mag sensor self test"
+        print("start mag sensor self test")
         self.setMagRegister('SELF_TEST','16bit')
         self.bus.write_i2c_block_data(self.addrAK8963, 0x0C, [0x40])
         time.sleep(1.0)
         data = self.getMag()
 
-        print data
+        print(data)
 
         self.bus.write_i2c_block_data(self.addrAK8963, 0x0C, [0x00])
         self.setMagRegister('POWER_DOWN','16bit')
         time.sleep(1.0)
-        print "end mag sensor self test"
+        print("end mag sensor self test")
         return
 
     # Calibrate the acceleration sensor
     # I think that you really need to consider latitude, altitude, terrain, etc., but I briefly thought about it.
     # It is a premise that gravity is correctly applied in the direction of the z axis and acceleration other than gravity is not generated.
     def calibAccel(self, _count=1000):
-        print "Accel calibration start"
+        print("Accel calibration start")
         _sum    = [0,0,0]
 
         # get data sample.
@@ -297,13 +299,13 @@ class SL_MPU9250:
 
         # I want to register an offset value in a register. But I do not know the behavior, so I will put it on hold.
 
-        print "Accel calibration complete"
+        print("Accel calibration complete")
         return self.offsetAccelX, self.offsetAccelY, self.offsetAccelZ
 
     # Calibrate the gyro sensor
     # Assumption that no rotation occurs on each axis
     def calibGyro(self, _count=1000):
-        print "Gyro calibration start"
+        print("Gyro calibration start")
         _sum    = [0,0,0]
 
         # get data sample
@@ -320,11 +322,22 @@ class SL_MPU9250:
 
         # I want to register an offset value in a register. But I do not know the behavior, so I will put it on hold.
 
-        print "Gyro calibration complete"
+        print("Gyro calibration complete")
         return self.offsetGyroX, self.offsetGyroY, self.offsetGyroZ
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Raspberry Pi with MP9250 sensor.")
+    parser.add_argument('-f', '--frequency', help="Sensor frequency (Hz). (default: 10)", type=int, default=10)
+    parser.add_argument('-o', '--output', help="Output filename. (default: output.csv)", default="output.csv")
+    parser.add_argument('-s', '--second', help="Number of seconds recorded. (default: 10)", type=int, default=10)
+    parser.add_argument('-m', '--memory', help="Using memory to output data last. (default: false)", action='store_true')
+
+    args = parser.parse_args()
+
+    header = ["Time", "AccX", "AccY", "AccZ", "GyrX", "GryY", "GryZ", "MagX", "MagY", "MagZ"]
+
     sensor  = SL_MPU9250(0x68,1)
     sensor.resetRegister()
     sensor.powerWakeUp()
@@ -333,24 +346,40 @@ if __name__ == "__main__":
     sensor.setMagRegister('100Hz','16bit')
     # sensor.selfTestMag()
 
-    while True:
-        now     = time.time()
+    counter = 0
+    counterMax = args.frequency * args.second
+
+    mMemory = None
+    if args.memory:
+        mMemory = [[0.0 for i in range(len(header))] for j in range(counterMax)]
+    
+    duration = 1.0 / args.frequency
+    fout = open(args.output, 'w')
+    writer = csv.writer(fout)
+    writer.writerow(header)
+    
+    print("Start Measurement")
+    startTime = time.perf_counter()
+    while counter < counterMax:
+        now     = time.perf_counter()
         acc     = sensor.getAccel()
         gyr     = sensor.getGyro()
         mag     = sensor.getMag()
-        print "%+8.7f" % acc[0] + " ",
-        print "%+8.7f" % acc[1] + " ",
-        print "%+8.7f" % acc[2] + " ",
-        print " |   ",
-        print "%+8.7f" % gyr[0] + " ",
-        print "%+8.7f" % gyr[1] + " ",
-        print "%+8.7f" % gyr[2] + " ",
-        print " |   ",
-        print "%+8.7f" % mag[0] + " ",
-        print "%+8.7f" % mag[1] + " ",
-        print "%+8.7f" % mag[2]
+        line = (now-startTime,)+acc+gyr+mag
 
-        sleepTime       = 0.1 - (time.time() - now)
-        if sleepTime < 0.0:
-            continue
-        time.sleep(sleepTime)
+        if args.memory:
+            mMemory[counter] = line
+        else:
+            writer.writerow(line)
+
+        counter += 1
+
+        until = now + duration
+        while time.perf_counter() < until:
+            pass
+
+    if args.memory:
+        for line in mMemory:
+            writer.writerow(line)
+
+    print("Finish Measurement")
