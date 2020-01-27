@@ -1,9 +1,11 @@
 # MPU-9250
 
-The class to control the MPU-9250 to work with python 2.
-It works with Raspberry pi 3. Sensor module using the MPU-9250 seems there are a variety of implementation.　This class is moving by mounting of strawberry Linux company.
+The class to control the MPU-9250 to work with python 3.
+It works with Raspberry pi 3. Sensor module using the MPU-9250 seems there are a variety of implementation. This class is moving by mounting of strawberry Linux company.
 
 https://strawberry-linux.com/catalog/items?code=12250
+
+## Requirement
 
 You need to make settings to make I2C available in Raspberry pi beforehand.
 
@@ -45,7 +47,11 @@ Please see the following URL for implementation details.
 
 http://qiita.com/boyaki_machine/items/915f7730c737f2a5cc79
 
-* Unfortunately, it's written in Japanese.
-  I am not good at English.
+## Usage
 
-When it's useful to you, I'm happy.
+$ python3 mpu9250.py -f 50 -o output_fps50_second10_memory.csv -s 10 -m
+
+* '-f', '--frequency', "Sensor frequency (Hz). (default: 10)", type=int, default=10
+* '-o', '--output', "Output filename. (default: output.csv)", default="output.csv"
+* '-s', '--second', "Number of seconds recorded. (default: 10)", type=int, default=10
+* '-m', '--memory', "Using memory to output data last. (default: false)"
