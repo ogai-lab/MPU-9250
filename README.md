@@ -49,9 +49,10 @@ http://qiita.com/boyaki_machine/items/915f7730c737f2a5cc79
 
 ## Usage
 
-$ python3 mpu9250.py -f 50 -o output_fps50_second10_memory.csv -s 10 -m
+$ sudo nice -n -20 python3 mpu9250.py -f 50 -o output_fps50_second10_memory.csv -s 10 -m
 
 * '-f', '--frequency', "Sensor frequency (Hz). (default: 10)", type=int, default=10
 * '-o', '--output', "Output filename. (default: output.csv)", default="output.csv"
 * '-s', '--second', "Number of seconds recorded. (default: 10)", type=int, default=10
 * '-m', '--memory', "Using memory to output data last. (default: false)"
+* '--nomag', "No mag. (default: false)"
