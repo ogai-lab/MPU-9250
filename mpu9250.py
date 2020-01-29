@@ -325,6 +325,59 @@ class SL_MPU9250:
         print("Gyro calibration complete")
         return self.offsetGyroX, self.offsetGyroY, self.offsetGyroZ
 
+def LoopWithMemoryNoMag(memory, counter, counterMax):
+    while counter < counterMax:
+        now = time.perf_counter()
+        acc = sensor.getAccel()
+        gyr = sensor.getGyro()
+        line = (now-startTime,)+acc+gyr
+        memory[counter] = line
+        counter += 1
+        while time.perf_counter() < now + duration:
+            pass
+
+    return
+
+def LoopWithMemory(memory, counter, counterMax):
+    while counter < counterMax:
+        now = time.perf_counter()
+        acc = sensor.getAccel()
+        gyr = sensor.getGyro()
+        mag = sensor.getMag()
+        line = (now-startTime,)+acc+gyr+mag
+        memory[counter] = line
+        counter += 1
+        while time.perf_counter() < now + duration:
+            pass
+
+    return
+
+def LoopWithoutMemoryNoMag(writer, counter, counterMax):
+    while counter < counterMax:
+        now = time.perf_counter()
+        acc = sensor.getAccel()
+        gyr = sensor.getGyro()
+        line = (now-startTime,)+acc+gyr
+        writer.writerow(line)
+        counter += 1
+        while time.perf_counter() < now + duration:
+            pass
+
+    return
+
+def LoopWithoutMemory(writer, counter, counterMax):
+    while counter < counterMax:
+        now = time.perf_counter()
+        acc = sensor.getAccel()
+        gyr = sensor.getGyro()
+        mag = sensor.getMag()
+        line = (now-startTime,)+acc+gyr+mag
+        writer.writerow(line)
+        counter += 1
+        while time.perf_counter() < now + duration:
+            pass
+
+    return
 
 if __name__ == "__main__":
 
@@ -333,10 +386,13 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', help="Output filename. (default: output.csv)", default="output.csv")
     parser.add_argument('-s', '--second', help="Number of seconds recorded. (default: 10)", type=int, default=10)
     parser.add_argument('-m', '--memory', help="Using memory to output data last. (default: false)", action='store_true')
+    parser.add_argument('--nomag', help="No mag. (default: false)", action='store_true')
 
     args = parser.parse_args()
 
     header = ["Time", "AccX", "AccY", "AccZ", "GyrX", "GryY", "GryZ", "MagX", "MagY", "MagZ"]
+    if args.nomag:
+        header = ["Time", "AccX", "AccY", "AccZ", "GyrX", "GryY", "GryZ"]
 
     sensor  = SL_MPU9250(0x68,1)
     sensor.resetRegister()
@@ -360,23 +416,14 @@ if __name__ == "__main__":
     
     print("Start Measurement")
     startTime = time.perf_counter()
-    while counter < counterMax:
-        now     = time.perf_counter()
-        acc     = sensor.getAccel()
-        gyr     = sensor.getGyro()
-        mag     = sensor.getMag()
-        line = (now-startTime,)+acc+gyr+mag
-
-        if args.memory:
-            mMemory[counter] = line
-        else:
-            writer.writerow(line)
-
-        counter += 1
-
-        until = now + duration
-        while time.perf_counter() < until:
-            pass
+    if args.memory and args.nomag:
+        LoopWithMemoryNoMag(mMemory, counter, counterMax)
+    elif args.memory:
+        LoopWithMemory(mMemory, counter, counterMax)
+    elif args.nomag:
+        LoopWithoutMemoryNoMag(writer, counter, counterMax)
+    else:
+        LoopWithoutMemory(writer, counter, counterMax)
 
     if args.memory:
         for line in mMemory:
